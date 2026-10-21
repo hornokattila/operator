@@ -24,7 +24,7 @@ RUN systemctl mask \
     docker.service \
     docker.socket
 
-RUN cat <<'EOF' > /root/config.sh
+RUN cat <<'EOF' > /root/conf.sh
 for net in edge outsideworx; do
   docker network connect "$net" operator
 done
