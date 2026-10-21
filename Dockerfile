@@ -24,6 +24,12 @@ RUN systemctl mask \
     docker.service \
     docker.socket
 
+RUN cat <<'EOF' > /root/config.sh
+for net in edge outsideworx; do
+  docker network connect "$net" operator
+done
+EOF
+
 EXPOSE 51821
 STOPSIGNAL SIGRTMIN+3
 CMD ["/sbin/init"]
