@@ -1,0 +1,25 @@
+networks:
+  edge:
+    external: true
+  outsideworx:
+    external: true
+services:
+  operator:
+    build: .
+    container_name: operator
+    hostname: operator
+    cgroup: host
+    cap_add:
+      - SYS_ADMIN
+    security_opt:
+      - apparmor=unconfined
+    tmpfs:
+      - /run
+      - /tmp:exec
+    volumes:
+      - /srv:/srv
+      - /sys/fs/cgroup:/sys/fs/cgroup
+      - /var/run/docker.sock:/run/docker.sock
+      - ~/.ssh/authorized_keys:/root/.ssh/authorized_keys:ro
+    ports:
+      - "51821:22"
