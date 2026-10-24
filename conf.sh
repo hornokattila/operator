@@ -4,4 +4,4 @@ for net in edge outsideworx; do
   docker network connect "$net" operator
 done
 
-echo 'y' | unminimize
+unminimize
