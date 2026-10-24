@@ -11,24 +11,18 @@ RUN apt update && apt install -y \
     openjdk-25-jdk \
     openssh-server \
     systemd \
-    systemd-sysv
-
-RUN echo 'y' | unminimize
-
-RUN userdel -r ubuntu
-
-RUN printf 'PasswordAuthentication no\nStrictModes no\n' > /etc/ssh/sshd_config.d/50-cloud-init.conf
+    systemd-sysv \
 
 RUN systemctl mask \
     containerd.service \
     docker.service \
-    docker.socket
+    docker.socket \
 
-RUN cat <<'EOF' > /root/conf.sh
-for net in edge outsideworx; do
-  docker network connect "$net" operator
-done
-EOF
+RUN userdel -r ubuntu
+RUN printf 'PasswordAuthentication no\nStrictModes no\n' > /etc/ssh/sshd_config.d/50-cloud-init.conf
+
+COPY conf.sh /root/conf.sh
+RUN chmod +x /root/conf.sh
 
 EXPOSE 51821
 STOPSIGNAL SIGRTMIN+3
