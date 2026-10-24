@@ -1,14 +1,10 @@
 FROM ubuntu:24.04
 ENV container=docker
 
-RUN apt update && apt install -y \
+RUN apt update && apt upgrade -y && apt install -y \
     curl \
     dbus \
     docker-compose-v2 \
-    git \
-    maven \
-    npm \
-    openjdk-25-jdk \
     openssh-server \
     systemd \
     systemd-sysv
