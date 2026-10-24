@@ -11,12 +11,12 @@ RUN apt update && apt install -y \
     openjdk-25-jdk \
     openssh-server \
     systemd \
-    systemd-sysv \
+    systemd-sysv
 
 RUN systemctl mask \
     containerd.service \
     docker.service \
-    docker.socket \
+    docker.socket
 
 RUN userdel -r ubuntu
 RUN printf 'PasswordAuthentication no\nStrictModes no\n' > /etc/ssh/sshd_config.d/50-cloud-init.conf
