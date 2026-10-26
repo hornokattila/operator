@@ -4,6 +4,7 @@ ENV container=docker
 RUN apt update && apt upgrade -y && apt install -y \
     curl \
     dbus \
+    docker-buildx
     docker-compose-v2 \
     htop \
     openssh-server \
