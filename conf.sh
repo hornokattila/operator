@@ -6,10 +6,8 @@ done
 
 apt update && apt upgrade -y && apt install -y \
   git \
-  htop \
   maven \
   npm \
-  openjdk-25-jdk \
-  vim
+  openjdk-25-jdk
 
 unminimize

@@ -5,9 +5,11 @@ RUN apt update && apt upgrade -y && apt install -y \
     curl \
     dbus \
     docker-compose-v2 \
+    htop \
     openssh-server \
     systemd \
-    systemd-sysv
+    systemd-sysv \
+    vim
 
 RUN systemctl mask \
     containerd.service \
