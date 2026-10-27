@@ -10,6 +10,7 @@ RUN apt update && apt upgrade -y && apt install -y \
     openssh-server \
     systemd \
     systemd-sysv \
+    unzip
     vim
 
 RUN systemctl mask \
@@ -22,6 +23,12 @@ RUN printf 'PasswordAuthentication no\nStrictModes no\n' > /etc/ssh/sshd_config.
 
 COPY conf.sh /root/conf.sh
 RUN chmod +x /root/conf.sh
+
+# Seeds the root volume on first creation only; later image changes under
+# /root are hidden by the existing volume.
+RUN install -d -m 700 /root/.ssh
+COPY authorized_keys /root/.ssh/authorized_keys
+RUN chmod 600 /root/.ssh/authorized_keys
 
 EXPOSE 51821
 STOPSIGNAL SIGRTMIN+3

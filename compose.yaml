@@ -13,10 +13,8 @@ services:
       - /tmp:exec
     volumes:
       - root:/root
-      - /srv:/srv
       - /sys/fs/cgroup:/sys/fs/cgroup
       - /var/run/docker.sock:/run/docker.sock
-      - ~/.ssh/authorized_keys:/root/.ssh/authorized_keys:ro
     ports:
       - "51821:22"
 volumes:
