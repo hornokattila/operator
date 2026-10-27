@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# conf.sh — provision the "operator" container.
+# ini.sh — provision the "operator" container.
 #
 # Run as root inside the container (the host Docker socket must be mounted).
 # Safe to re-run: each step checks whether its work is already done
