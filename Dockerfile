@@ -4,13 +4,13 @@ ENV container=docker
 RUN apt update && apt upgrade -y && apt install -y \
     curl \
     dbus \
-    docker-buildx
+    docker-buildx \
     docker-compose-v2 \
     htop \
     openssh-server \
     systemd \
     systemd-sysv \
-    unzip
+    unzip \
     vim
 
 RUN systemctl mask \
