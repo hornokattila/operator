@@ -10,6 +10,7 @@ RUN apt update && apt upgrade -y && apt install -y \
     openssh-server \
     systemd \
     systemd-sysv \
+    tmux \
     unzip \
     vim
 

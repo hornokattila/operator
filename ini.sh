@@ -38,19 +38,19 @@ readonly SRC_DIR="$HOME/src"
 readonly OUTSIDEWORX_ORG="git@github.com:outsideworx"
 readonly OUTSIDEWORX_DIR="$SRC_DIR/outsideworx"
 readonly OUTSIDEWORX_REPOS=(
-  sites
-  services
-  .kiro
-  tunde-divat
-  outsideworx
-  thegreen
-  soupkitchen
-  soupart
-  igli
-  gaiapeeps
-  duckumbrella
-  come-in-and-find-out
   .github
+  .kiro
+  come-in-and-find-out
+  duckumbrella
+  gaiapeeps
+  igli
+  outsideworx
+  services
+  sites
+  soupart
+  soupkitchen
+  thegreen
+  tunde-divat
 )
 
 # hornokattila repos — cloned straight into $SRC_DIR
