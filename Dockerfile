@@ -21,7 +21,7 @@ RUN systemctl mask \
 RUN userdel -r ubuntu
 RUN printf 'PasswordAuthentication no\nStrictModes no\n' > /etc/ssh/sshd_config.d/50-cloud-init.conf
 
-COPY ini.sh /root/ini.sh
+COPY .bash_aliases ini.sh /root/
 RUN chmod +x /root/ini.sh
 
 # Seeds the root volume on first creation only; later image changes under

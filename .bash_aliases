@@ -1,0 +1,5 @@
+alias reboot="docker restart operator"
+alias poweroff="docker stop operator"
+alias ssh-outsideworx="ssh outsideworx.net"
+alias kiro="tmux new-session -c ~/src/outsideworx 'kiro-cli --agent Outside\ Worx'"
+alias apt-update="apt update && apt upgrade -y && apt autoremove && apt autoclean && apt autopurge"
