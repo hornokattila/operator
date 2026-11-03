@@ -129,9 +129,12 @@ connect_networks() {
   for net in "${NETWORKS[@]}"; do
     if grep -qxF -- "$net" <<<"$attached"; then
       info "already connected to '$net', skipping"
-    else
+    elif ! docker network inspect "$net" >/dev/null 2>&1; then
+      info "network '$net' does not exist, skipping"
+    elif docker network connect "$net" "$CONTAINER"; then
       info "connecting to '$net'"
-      docker network connect "$net" "$CONTAINER"
+    else
+      info "failed to connect to '$net', skipping"
     fi
   done
 }
