@@ -1,10 +1,4 @@
-#!/usr/bin/env bash
-#
-# ini.sh — provision the "operator" container.
-#
-# Run as root inside the container (the host Docker socket must be mounted).
-# Safe to re-run: each step checks whether its work is already done
-# before acting (networks, unminimize, Kiro install, PATH, git checkouts).
+#!/bin/bash
 
 set -euo pipefail
 shopt -s inherit_errexit
@@ -34,7 +28,6 @@ readonly PROFILE="$HOME/.profile"
 
 readonly SRC_DIR="$HOME/src"
 
-# Outside Worx repos — cloned into $SRC_DIR/outsideworx
 readonly OUTSIDEWORX_ORG="git@github.com:outsideworx"
 readonly OUTSIDEWORX_DIR="$SRC_DIR/outsideworx"
 readonly OUTSIDEWORX_REPOS=(
@@ -53,7 +46,6 @@ readonly OUTSIDEWORX_REPOS=(
   tunde-divat
 )
 
-# hornokattila repos — cloned straight into $SRC_DIR
 readonly HORNOKATTILA_ORG="git@github.com:hornokattila"
 readonly HORNOKATTILA_DIR="$SRC_DIR"
 readonly HORNOKATTILA_REPOS=(
@@ -61,8 +53,6 @@ readonly HORNOKATTILA_REPOS=(
   operator
 )
 
-# Global git config — shared from the hornokattila .vscode repo.
-# It references the repo's .gitignore in place via core.excludesFile.
 readonly GITCONFIG_SOURCE="$HORNOKATTILA_DIR/.vscode/.gitconfig"
 readonly GITCONFIG_TARGET="$HOME/.gitconfig"
 
@@ -87,7 +77,6 @@ have() {
   command -v "$1" >/dev/null 2>&1
 }
 
-# require_cmds <cmd>... — abort if any command is missing.
 require_cmds() {
   local cmd
   for cmd in "$@"; do
@@ -95,8 +84,6 @@ require_cmds() {
   done
 }
 
-# clone_repos <org> <dest_dir> <repo>...
-# Clones each repo into dest_dir, skipping any that are already cloned.
 clone_repos() {
   local org="$1" dest="$2"
   shift 2
@@ -119,7 +106,6 @@ clone_repos() {
 connect_networks() {
   log "Connecting '$CONTAINER' to Docker networks"
 
-  # Exact network names the container is attached to, one per line.
   local attached
   attached="$(docker inspect --format \
     '{{range $name, $_ := .NetworkSettings.Networks}}{{println $name}}{{end}}' \
@@ -152,11 +138,8 @@ unminimize_system() {
   if ! have unminimize; then
     info "unminimize not available, skipping"
   elif [[ ! -e /etc/dpkg/dpkg.cfg.d/excludes ]]; then
-    # unminimize removes this file once it has run.
     info "system already unminimized, skipping"
   else
-    # `yes` dies of SIGPIPE when unminimize exits; ignore only that side
-    # so a real unminimize failure still aborts the script.
     { yes || true; } | unminimize
   fi
 }
@@ -166,7 +149,6 @@ install_kiro() {
   if have "$KIRO_BIN" || [[ -x "$LOCAL_BIN/$KIRO_BIN" ]]; then
     info "Kiro already installed, skipping"
   else
-    # Download fully before executing, so a truncated transfer never runs.
     local installer
     installer="$(mktemp)"
     trap 'rm -f -- "$installer"' RETURN
@@ -174,8 +156,6 @@ install_kiro() {
     bash "$installer"
   fi
 
-  # Written literally to ~/.profile; expanded at login, not here.
-  # shellcheck disable=SC2016
   local path_line='export PATH="$HOME/.local/bin:$PATH"'
   if grep -qF -- '.local/bin' "$PROFILE" 2>/dev/null; then
     info "${LOCAL_BIN} already on PATH in ${PROFILE}, skipping"
