@@ -11,7 +11,6 @@ readonly CONTAINER="operator"
 
 readonly NETWORKS=(
   edge
-  outsideworx
 )
 
 readonly PACKAGES=(
