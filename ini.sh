@@ -27,7 +27,7 @@ readonly PROFILE="$HOME/.profile"
 
 readonly STUNNEL_DIR="/etc/stunnel"
 readonly STUNNEL_PEM="$STUNNEL_DIR/stunnel.pem"
-readonly STUNNEL_CN="ops.outsideworx.net"
+readonly STUNNEL_CN="ssh.outsideworx.net"
 readonly STUNNEL_SERVICE="stunnel.service"
 
 readonly SRC_DIR="$HOME/src"
