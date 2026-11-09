@@ -17,6 +17,5 @@ services:
       - /var/run/docker.sock:/run/docker.sock
     ports:
       - "8443:8443"
-      - "51821:22"
 volumes:
   root:
