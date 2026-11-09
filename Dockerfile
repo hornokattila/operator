@@ -38,6 +38,6 @@ RUN install -d -m 700 /root/.ssh
 COPY authorized_keys /root/.ssh/authorized_keys
 RUN chmod 600 /root/.ssh/authorized_keys
 
-EXPOSE 22 8443
+EXPOSE 8443
 STOPSIGNAL SIGRTMIN+3
 CMD ["/sbin/init"]
