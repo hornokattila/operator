@@ -16,10 +16,7 @@ services:
       - /sys/fs/cgroup:/sys/fs/cgroup
       - /var/run/docker.sock:/run/docker.sock
     ports:
-      # TLS-masked SSH (stunnel). Bound to host loopback so it is only
-      # reachable locally or via the host's VPN tunnel, not the open internet.
-      - "127.0.0.1:8443:8443"
-      # Raw SSH fallback.
+      - "8443:8443"
       - "51821:22"
 volumes:
   root:
