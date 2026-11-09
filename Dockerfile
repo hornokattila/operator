@@ -8,6 +8,8 @@ RUN apt update && apt upgrade -y && apt install -y \
     docker-compose-v2 \
     htop \
     openssh-server \
+    openssl \
+    stunnel4 \
     systemd \
     systemd-sysv \
     tmux \
@@ -22,6 +24,15 @@ RUN systemctl mask \
 RUN userdel -r ubuntu
 RUN printf 'PasswordAuthentication no\nStrictModes no\n' > /etc/ssh/sshd_config.d/50-cloud-init.conf
 
+# TLS masking for sshd: ship our own stunnel unit and config. Disable the
+# packaged SysV init so it does not also bind the port from /etc/stunnel/*.conf.
+# The self-signed cert (/etc/stunnel/stunnel.pem) is generated at provision
+# time by ini.sh; the unit only starts once it exists.
+COPY stunnel.conf /etc/stunnel/stunnel.conf
+COPY stunnel.service /etc/systemd/system/stunnel.service
+RUN systemctl disable stunnel4.service 2>/dev/null || true
+RUN systemctl enable ssh.service stunnel.service
+
 COPY .bash_aliases ini.sh /root/
 RUN chmod +x /root/ini.sh
 
@@ -31,6 +42,6 @@ RUN install -d -m 700 /root/.ssh
 COPY authorized_keys /root/.ssh/authorized_keys
 RUN chmod 600 /root/.ssh/authorized_keys
 
-EXPOSE 51821
+EXPOSE 22 8443
 STOPSIGNAL SIGRTMIN+3
 CMD ["/sbin/init"]

@@ -25,6 +25,11 @@ readonly KIRO_BIN="kiro-cli"
 readonly LOCAL_BIN="$HOME/.local/bin"
 readonly PROFILE="$HOME/.profile"
 
+readonly STUNNEL_DIR="/etc/stunnel"
+readonly STUNNEL_PEM="$STUNNEL_DIR/stunnel.pem"
+readonly STUNNEL_CN="ops.outsideworx.net"
+readonly STUNNEL_SERVICE="stunnel.service"
+
 readonly SRC_DIR="$HOME/src"
 
 readonly OUTSIDEWORX_ORG="git@github.com:outsideworx"
@@ -172,6 +177,27 @@ clone_all_repos() {
   clone_repos "$HORNOKATTILA_ORG" "$HORNOKATTILA_DIR" "${HORNOKATTILA_REPOS[@]}"
 }
 
+install_stunnel_cert() {
+  log "Generating self-signed TLS certificate for stunnel"
+  if [[ -f "$STUNNEL_PEM" ]]; then
+    info "certificate '$STUNNEL_PEM' already exists, skipping"
+  else
+    info "creating '$STUNNEL_PEM' (CN=$STUNNEL_CN)"
+    install -d -m 700 -- "$STUNNEL_DIR"
+    local key cert
+    key="$(mktemp)"
+    cert="$(mktemp)"
+    trap 'rm -f -- "$key" "$cert"' RETURN
+    openssl req -x509 -newkey rsa:4096 -nodes -days 3650 \
+      -subj "/CN=$STUNNEL_CN" -keyout "$key" -out "$cert"
+    cat -- "$cert" "$key" >"$STUNNEL_PEM"
+    chmod 600 -- "$STUNNEL_PEM"
+  fi
+
+  info "restarting '$STUNNEL_SERVICE'"
+  systemctl restart "$STUNNEL_SERVICE"
+}
+
 install_gitconfig() {
   log "Installing global git config"
   info "copying '$GITCONFIG_SOURCE' to '$GITCONFIG_TARGET'"
@@ -184,10 +210,11 @@ install_gitconfig() {
 
 main() {
   ((EUID == 0)) || die "must be run as root"
-  require_cmds docker curl apt-get
+  require_cmds docker curl apt-get openssl systemctl
 
   connect_networks
   install_packages
+  install_stunnel_cert
   unminimize_system
   install_kiro
   clone_all_repos
