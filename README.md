@@ -29,6 +29,8 @@ alias ssh-operator="ssh -o ProxyCommand='openssl s_client -quiet -connect outsid
 
 ### Connect (self-knocking)
 
+> ⚠️ **`Work in progress`** — this self-knocking helper is **not finished yet** and may not work reliably.
+
 Opens the knock gate, connects, and closes the gate again — no browser step
 needed. It `POST`s the secret to the knock web view to arm the tunnel, opens the
 SSH session, and `GET /logout`s afterwards (via a trap, so the gate is also
