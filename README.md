@@ -47,10 +47,17 @@ ssh-operator() {
   local port="8443"
   local secret="${OPERATOR_KNOCK_SECRET:?set OPERATOR_KNOCK_SECRET to the knock secret}"
 
-  # Percent-encode the secret for the urlencoded POST body.
   local enc
-  enc=$(printf '%s' "$secret" | od -An -tx1 | tr ' ' '\n' | sed '/^$/d' \
-    | awk '{c=strtonum("0x"$1); if ((c>=48&&c<=57)||(c>=65&&c<=90)||(c>=97&&c<=122)||c==45||c==46||c==95||c==126) printf "%c",c; else printf "%%%s",toupper($1)}')
+  enc=$(printf '%s' "$secret" | od -An -tx1 | tr ' ' '\n' | sed '/^$/d' | while read -r h; do
+    d=$((16#$h))
+    if { [ "$d" -ge 48 ] && [ "$d" -le 57 ]; } || { [ "$d" -ge 65 ] && [ "$d" -le 90 ]; } \
+       || { [ "$d" -ge 97 ] && [ "$d" -le 122 ]; } \
+       || [ "$d" -eq 45 ] || [ "$d" -eq 46 ] || [ "$d" -eq 95 ] || [ "$d" -eq 126 ]; then
+      printf '%b' "\\x$h"
+    else
+      printf '%%%s' "$(printf '%s' "$h" | tr '[:lower:]' '[:upper:]')"
+    fi
+  done)
 
   _knock() {
     printf '%b' "$1" \
@@ -59,10 +66,8 @@ ssh-operator() {
 
   trap '_knock "GET /logout HTTP/1.1\r\nHost: '"$host"'\r\nConnection: close\r\n\r\n"' RETURN INT TERM
 
-  # Open the tunnel.
   _knock "POST / HTTP/1.1\r\nHost: ${host}\r\nContent-Type: application/x-www-form-urlencoded\r\nContent-Length: $((7 + ${#enc}))\r\nConnection: close\r\n\r\nsecret=${enc}"
 
-  # Connect.
   ssh -o ProxyCommand="openssl s_client -quiet -connect ${host}:${port} -servername ${host}" root@"$host"
 }
 ```
