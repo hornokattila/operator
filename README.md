@@ -27,6 +27,46 @@ Add these to your shell profile (e.g. `~/.zshrc` or `~/.bashrc`).
 alias ssh-operator="ssh -o ProxyCommand='openssl s_client -quiet -connect outsideworx.net:8443 -servername outsideworx.net' root@outsideworx.net"
 ```
 
+### Connect (self-knocking)
+
+Opens the knock gate, connects, and closes the gate again — no browser step
+needed. It `POST`s the secret to the knock web view to arm the tunnel, opens the
+SSH session, and `GET /logout`s afterwards (via a trap, so the gate is also
+closed if the session is interrupted). The secret is percent-encoded before
+submission, so arbitrary `openssl rand -base64` secrets work.
+
+Set the secret in your profile (retrieve it in-container with
+`cat /etc/knock/secret`). Remember that arming is **global** — this opens the
+tunnel for everyone until logout, and anyone's `/logout` can close it mid-session.
+
+```sh
+export OPERATOR_KNOCK_SECRET="<the secret from /etc/knock/secret>"
+
+ssh-operator() {
+  local host="outsideworx.net"
+  local port="8443"
+  local secret="${OPERATOR_KNOCK_SECRET:?set OPERATOR_KNOCK_SECRET to the knock secret}"
+
+  # Percent-encode the secret for the urlencoded POST body.
+  local enc
+  enc=$(printf '%s' "$secret" | od -An -tx1 | tr ' ' '\n' | sed '/^$/d' \
+    | awk '{c=strtonum("0x"$1); if ((c>=48&&c<=57)||(c>=65&&c<=90)||(c>=97&&c<=122)||c==45||c==46||c==95||c==126) printf "%c",c; else printf "%%%s",toupper($1)}')
+
+  _knock() {
+    printf '%b' "$1" \
+      | openssl s_client -quiet -connect "${host}:${port}" -servername "$host" 2>/dev/null >/dev/null
+  }
+
+  trap '_knock "GET /logout HTTP/1.1\r\nHost: '"$host"'\r\nConnection: close\r\n\r\n"' RETURN INT TERM
+
+  # Open the tunnel.
+  _knock "POST / HTTP/1.1\r\nHost: ${host}\r\nContent-Type: application/x-www-form-urlencoded\r\nContent-Length: $((7 + ${#enc}))\r\nConnection: close\r\n\r\nsecret=${enc}"
+
+  # Connect.
+  ssh -o ProxyCommand="openssl s_client -quiet -connect ${host}:${port} -servername ${host}" root@"$host"
+}
+```
+
 ### Seed SSH keys
 
 Copies the local `~/.ssh/{authorized_keys,id_ecdsa,id_ecdsa.pub}` into the operator's
