@@ -1,7 +1,7 @@
 [Unit]
-Description=stunnel TLS front for sshd
-After=network.target ssh.service
-Wants=ssh.service
+Description=stunnel TLS front for the knock gatekeeper
+After=network.target knock.service
+Wants=knock.service
 ConditionPathExists=/etc/stunnel/stunnel.pem
 
 [Service]

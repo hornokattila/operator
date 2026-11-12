@@ -30,6 +30,10 @@ readonly STUNNEL_PEM="$STUNNEL_DIR/stunnel.pem"
 readonly STUNNEL_CN="outsideworx.net"
 readonly STUNNEL_SERVICE="stunnel.service"
 
+readonly KNOCK_DIR="/etc/knock"
+readonly KNOCK_SECRET="$KNOCK_DIR/secret"
+readonly KNOCK_SERVICE="knock.service"
+
 readonly SRC_DIR="$HOME/src"
 
 readonly OUTSIDEWORX_ORG="git@github.com:outsideworx"
@@ -177,6 +181,22 @@ clone_all_repos() {
   clone_repos "$HORNOKATTILA_ORG" "$HORNOKATTILA_DIR" "${HORNOKATTILA_REPOS[@]}"
 }
 
+install_knock_secret() {
+  log "Generating knock gatekeeper secret"
+  if [[ -f "$KNOCK_SECRET" ]]; then
+    info "secret '$KNOCK_SECRET' already exists, skipping"
+  else
+    info "creating '$KNOCK_SECRET'"
+    install -d -m 700 -- "$KNOCK_DIR"
+    openssl rand -base64 24 >"$KNOCK_SECRET"
+    chmod 600 -- "$KNOCK_SECRET"
+    info "secret written; retrieve it with: cat $KNOCK_SECRET"
+  fi
+
+  info "restarting '$KNOCK_SERVICE'"
+  systemctl restart "$KNOCK_SERVICE"
+}
+
 install_stunnel_cert() {
   log "Generating self-signed TLS certificate for stunnel"
   if [[ -f "$STUNNEL_PEM" ]]; then
@@ -214,6 +234,7 @@ main() {
 
   connect_networks
   install_packages
+  install_knock_secret
   install_stunnel_cert
   unminimize_system
   install_kiro

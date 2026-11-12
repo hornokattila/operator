@@ -5,9 +5,17 @@ TLS-masked tunnel (`stunnel` on port `8443`): on the wire the connection looks l
 plain HTTPS to `outsideworx.net`. There is no raw SSH port published — recover via
 `docker exec` from the host if the tunnel is ever unavailable.
 
+The tunnel is also **port-knock gated**: before any SSH connection works you must
+open it from a browser. Visit `https://outsideworx.net:8443/` (accept the
+self-signed cert), enter the secret from `/etc/knock/secret` (retrieve it with
+`cat /etc/knock/secret` over `docker exec` or an open session), and submit. The
+tunnel is now armed for everyone until you visit `https://outsideworx.net:8443/logout`
+or the `knock.service` is restarted.
+
 All three operations below wrap SSH in TLS via `ProxyCommand`. They authenticate with
 an SSH key present in the operator's `authorized_keys`; the `@host` after the user is
-cosmetic because the `ProxyCommand` selects the destination.
+cosmetic because the `ProxyCommand` selects the destination. Open the knock gate in a
+browser first, or these will hang/close.
 
 ## Useful Host Operations
 

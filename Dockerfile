@@ -9,6 +9,7 @@ RUN apt update && apt upgrade -y && apt install -y \
     htop \
     openssh-server \
     openssl \
+    python3 \
     stunnel4 \
     systemd \
     systemd-sysv \
@@ -24,12 +25,13 @@ RUN systemctl mask \
 RUN userdel -r ubuntu
 RUN printf 'PasswordAuthentication no\nStrictModes no\n' > /etc/ssh/sshd_config.d/50-cloud-init.conf
 
+COPY knock.service /etc/systemd/system/knock.service
 COPY stunnel.conf /etc/stunnel/stunnel.conf
 COPY stunnel.service /etc/systemd/system/stunnel.service
 RUN systemctl disable stunnel4.service 2>/dev/null || true
-RUN systemctl enable ssh.service stunnel.service
+RUN systemctl enable knock.service ssh.service stunnel.service
 
-COPY .bash_aliases ini.sh /root/
+COPY .bash_aliases ini.sh knock.py /root/
 RUN chmod +x /root/ini.sh
 
 # Seeds the root volume on first creation only; later image changes under
