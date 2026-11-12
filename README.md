@@ -61,7 +61,7 @@ ssh-operator() {
 
   _knock() {
     printf '%b' "$1" \
-      | openssl s_client -quiet -connect "${host}:${port}" -servername "$host" 2>/dev/null >/dev/null
+      | openssl s_client -quiet -no_ign_eof -connect "${host}:${port}" -servername "$host" 2>/dev/null >/dev/null
   }
 
   trap '_knock "GET /logout HTTP/1.1\r\nHost: '"$host"'\r\nConnection: close\r\n\r\n"' RETURN INT TERM
