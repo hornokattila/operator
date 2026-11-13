@@ -35,11 +35,11 @@ alias ssh-operator="ssh -o ProxyCommand='openssl s_client -quiet -connect outsid
 
 ### Seed SSH keys
 
-Copies the local `~/.ssh/{authorized_keys,id_ecdsa,id_ecdsa.pub}` into the operator's
+Copies the local `~/.ssh/{id_ecdsa,id_ecdsa.pub}` into the operator's
 `/root/.ssh/`.
 
 ```sh
-alias ini-operator="scp -o ProxyCommand='openssl s_client -quiet -connect outsideworx.net:8443 -servername outsideworx.net' ~/.ssh/authorized_keys ~/.ssh/id_ecdsa ~/.ssh/id_ecdsa.pub root@outsideworx.net:/root/.ssh/"
+alias ini-operator="scp -o ProxyCommand='openssl s_client -quiet -connect outsideworx.net:8443 -servername outsideworx.net' ~/.ssh/id_ecdsa ~/.ssh/id_ecdsa.pub root@outsideworx.net:/root/.ssh/"
 ```
 
 ### Mount `/root/src` over sshfs
