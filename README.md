@@ -6,16 +6,41 @@ plain HTTPS to `outsideworx.net`. There is no raw SSH port published — recover
 `docker exec` from the host if the tunnel is ever unavailable.
 
 The tunnel is also **port-knock gated**: before any SSH connection works you must
-open it from a browser. Visit `https://outsideworx.net:8443/` (accept the
-self-signed cert), enter the secret from `/etc/knock/secret` (retrieve it with
-`cat /etc/knock/secret` over `docker exec` or an open session), and submit. The
-tunnel is now armed for everyone until you visit `https://outsideworx.net:8443/logout`
-or the `knock.service` is restarted.
+open it with a `Bearer`-token knock. The knock gatekeeper exposes a tiny JSON API
+over the same TLS front — there is **no web UI**:
 
-All three operations below wrap SSH in TLS via `ProxyCommand`. They authenticate with
-an SSH key present in the operator's `authorized_keys`; the `@host` after the user is
-cosmetic because the `ProxyCommand` selects the destination. Open the knock gate in a
-browser first, or these will hang/close.
+- `POST https://outsideworx.net:8443/login` with header
+  `Authorization: Bearer <secret>` arms the tunnel (responds `{"armed": true}`).
+- `POST https://outsideworx.net:8443/logout` with the same header disarms it
+  (responds `{"armed": false}`).
+
+The `<secret>` is the contents of `/etc/knock/secret` (retrieve it with
+`cat /etc/knock/secret` over `docker exec` or an open session). A wrong or missing
+token gets `401`. The gate is read fresh on every request, so rotating the secret
+takes effect immediately. Arming is **global and in-memory** — once opened the
+tunnel is open for everyone until a `/logout` or a `knock.service` restart.
+
+The `services` admin portal (`clients/outsideworx`) has a dedicated **Open tunnel /
+Close tunnel** button pair that performs these two calls for you; it reads the token
+from its key-value store (key `operator-knock-token`). You can also drive the gate
+from the shell (see below).
+
+All three SSH operations below wrap SSH in TLS via `ProxyCommand`. They authenticate
+with an SSH key present in the operator's `authorized_keys`; the `@host` after the
+user is cosmetic because the `ProxyCommand` selects the destination. Open the knock
+gate first (portal buttons, the `curl` calls below, or the self-knocking helper), or
+these will hang/close.
+
+### Open / close the gate (curl)
+
+```sh
+export OPERATOR_KNOCK_SECRET="$(: set to the contents of /etc/knock/secret)"
+
+# open
+curl -sk -X POST -H "Authorization: Bearer $OPERATOR_KNOCK_SECRET" https://outsideworx.net:8443/login
+# close
+curl -sk -X POST -H "Authorization: Bearer $OPERATOR_KNOCK_SECRET" https://outsideworx.net:8443/logout
+```
 
 ## Useful Host Operations
 
@@ -29,13 +54,11 @@ alias ssh-operator="ssh -o ProxyCommand='openssl s_client -quiet -connect outsid
 
 ### Connect (self-knocking)
 
-> ⚠️ **`Work in progress`** — this self-knocking helper is **not finished yet** and may not work reliably.
-
-Opens the knock gate, connects, and closes the gate again — no browser step
-needed. It `POST`s the secret to the knock web view to arm the tunnel, opens the
-SSH session, and `GET /logout`s afterwards (via a trap, so the gate is also
-closed if the session is interrupted). The secret is percent-encoded before
-submission, so arbitrary `openssl rand -base64` secrets work.
+Opens the knock gate, connects, and closes the gate again — no portal step
+needed. It `POST`s the `Bearer` token to `/login` to arm the tunnel, opens the SSH
+session, and `POST`s `/logout` afterwards (via a trap, so the gate is also closed if
+the session is interrupted). Because the token travels in the `Authorization`
+header, arbitrary `openssl rand -base64` secrets work without encoding.
 
 Set the secret in your profile (retrieve it in-container with
 `cat /etc/knock/secret`). Remember that arming is **global** — this opens the
@@ -49,26 +72,12 @@ ssh-operator() {
   local port="8443"
   local secret="${OPERATOR_KNOCK_SECRET:?set OPERATOR_KNOCK_SECRET to the knock secret}"
 
-  local enc
-  enc=$(printf '%s' "$secret" | od -An -tx1 | tr ' ' '\n' | sed '/^$/d' | while read -r h; do
-    d=$((16#$h))
-    if { [ "$d" -ge 48 ] && [ "$d" -le 57 ]; } || { [ "$d" -ge 65 ] && [ "$d" -le 90 ]; } \
-       || { [ "$d" -ge 97 ] && [ "$d" -le 122 ]; } \
-       || [ "$d" -eq 45 ] || [ "$d" -eq 46 ] || [ "$d" -eq 95 ] || [ "$d" -eq 126 ]; then
-      printf '%b' "\\x$h"
-    else
-      printf '%%%s' "$(printf '%s' "$h" | tr '[:lower:]' '[:upper:]')"
-    fi
-  done)
-
   _knock() {
-    printf '%b' "$1" \
-      | openssl s_client -quiet -no_ign_eof -connect "${host}:${port}" -servername "$host" 2>/dev/null >/dev/null
+    curl -sk -X POST -H "Authorization: Bearer ${secret}" "https://${host}:${port}/$1" >/dev/null
   }
 
-  trap '_knock "GET /logout HTTP/1.1\r\nHost: '"$host"'\r\nConnection: close\r\n\r\n"' RETURN INT TERM
-
-  _knock "POST / HTTP/1.1\r\nHost: ${host}\r\nContent-Type: application/x-www-form-urlencoded\r\nContent-Length: $((7 + ${#enc}))\r\nConnection: close\r\n\r\nsecret=${enc}"
+  trap '_knock logout' RETURN INT TERM
+  _knock login
 
   ssh -o ProxyCommand="openssl s_client -quiet -connect ${host}:${port} -servername ${host}" root@"$host"
 }

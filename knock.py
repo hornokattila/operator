@@ -1,10 +1,9 @@
+import json
 import logging
 import os
-import re
 import select
 import socket
 import threading
-import urllib.parse
 
 logging.basicConfig(
     level=logging.INFO,
@@ -18,8 +17,6 @@ SSH_HOST = "127.0.0.1"
 SSH_PORT = int(os.environ.get("KNOCK_SSH_PORT", "22"))
 SECRET_FILE = os.environ.get("KNOCK_SECRET_FILE", "/etc/knock/secret")
 
-COOKIE_NAME = "knock"
-COOKIE_VALUE = "open"
 PEEK_BYTES = 8
 PEEK_TIMEOUT = 10
 SPLICE_BUFFER = 65536
@@ -84,115 +81,75 @@ def recv_http_request(conn, initial):
     return method, target, headers, body
 
 
-def has_open_cookie(headers):
-    cookie = headers.get("cookie", "")
-    return re.search(rf"\b{COOKIE_NAME}={COOKIE_VALUE}\b", cookie) is not None
+def bearer_token(headers):
+    value = headers.get("authorization", "")
+    prefix = "bearer "
+    if value.lower().startswith(prefix):
+        return value[len(prefix):].strip()
+    return None
 
 
-def send_http(conn, status, body, extra_headers=None):
-    payload = body.encode("utf-8")
+def send_json(conn, status, payload):
+    body = json.dumps(payload).encode("utf-8")
     head = [
         f"HTTP/1.1 {status}",
-        "Content-Type: text/html; charset=utf-8",
-        f"Content-Length: {len(payload)}",
+        "Content-Type: application/json; charset=utf-8",
+        f"Content-Length: {len(body)}",
+        "Access-Control-Allow-Origin: *",
+        "Access-Control-Allow-Methods: POST, OPTIONS",
+        "Access-Control-Allow-Headers: Authorization, Content-Type",
+        "Access-Control-Max-Age: 86400",
         "Connection: close",
     ]
-    if extra_headers:
-        head.extend(extra_headers)
-    response = ("\r\n".join(head) + "\r\n\r\n").encode("utf-8") + payload
+    response = ("\r\n".join(head) + "\r\n\r\n").encode("utf-8") + body
     try:
         conn.sendall(response)
     except OSError:
         pass
 
 
-def login_page(message):
-    message_html = ""
-    if message:
-        message_html = f'<p style="color:#c0392b">{message}</p>'
-    return f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Login - Outside Worx</title>
-<style>
-body{{display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#111;color:#eee;font-family:sans-serif}}
-.card{{text-align:center;background:#1a1a1a;padding:2.5em;border-radius:8px;border:1px solid #333;min-width:300px}}
-h1{{margin:0 0 .5em;font-size:1.5em;font-weight:600}}
-p.hint{{color:#999;margin:0 0 1.5em;font-size:.9em}}
-input[type=password]{{padding:.5em;font-size:1em;border:1px solid #555;border-radius:4px;background:#222;color:#eee;width:100%;box-sizing:border-box}}
-button{{padding:.5em 1.5em;font-size:1em;border:none;border-radius:4px;background:#00b2ff;color:#111;cursor:pointer;margin-top:1em}}
-</style>
-</head>
-<body>
-<form method="POST" action="/" class="card">
-<h1>Outside Worx</h1>
-<p class="hint">Please provide the secret to open the tunnel.</p>
-{message_html}
-<input type="password" name="secret" autofocus>
-<br>
-<button type="submit">Enter</button>
-</form>
-</body>
-</html>"""
+def send_no_content(conn):
+    head = [
+        "HTTP/1.1 204 No Content",
+        "Access-Control-Allow-Origin: *",
+        "Access-Control-Allow-Methods: POST, OPTIONS",
+        "Access-Control-Allow-Headers: Authorization, Content-Type",
+        "Access-Control-Max-Age: 86400",
+        "Content-Length: 0",
+        "Connection: close",
+    ]
+    response = ("\r\n".join(head) + "\r\n\r\n").encode("utf-8")
+    try:
+        conn.sendall(response)
+    except OSError:
+        pass
 
 
-def status_page(title, message):
-    return f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>{title} - Outside Worx</title>
-<style>
-body{{display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#111;color:#eee;font-family:sans-serif}}
-.card{{text-align:center;background:#1a1a1a;padding:2.5em;border-radius:8px;border:1px solid #333;min-width:300px}}
-h1{{margin:0 0 .5em;font-size:1.5em;font-weight:600}}
-p{{color:#999;margin:0;font-size:.9em}}
-a{{color:#00b2ff}}
-</style>
-</head>
-<body>
-<div class="card">
-<h1>{title}</h1>
-<p>{message}</p>
-</div>
-</body>
-</html>"""
-
-
-def parse_submitted_secret(body):
-    fields = urllib.parse.parse_qs(body.decode("latin-1", "replace"))
-    values = fields.get("secret", [])
-    return values[0] if values else None
-
-
-def handle_http(conn, method, target, headers, body):
+def handle_http(conn, method, target, headers):
     path = target.split("?", 1)[0]
 
-    if path == "/logout":
-        set_armed(False)
-        expire = f"Set-Cookie: {COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0"
-        send_http(conn, "200 OK", status_page("Tunnel closed", "The tunnel has been closed. Reload to open it again."), [expire])
+    if method == "OPTIONS":
+        send_no_content(conn)
         return
 
-    if method == "POST" and path == "/":
-        secret = load_secret()
-        submitted = parse_submitted_secret(body)
-        if secret and submitted == secret:
-            set_armed(True)
-            cookie = f"Set-Cookie: {COOKIE_NAME}={COOKIE_VALUE}; Path=/; HttpOnly; SameSite=Strict"
-            send_http(conn, "200 OK", status_page("Tunnel open", "The tunnel is open. You may connect now. Visit /logout to close it."), [cookie])
-            return
-        send_http(conn, "200 OK", login_page("Try again!"))
+    if method != "POST" or path not in ("/login", "/logout"):
+        send_json(conn, "404 Not Found", {"error": "not found"})
         return
 
-    if is_armed() and has_open_cookie(headers):
-        send_http(conn, "200 OK", status_page("Tunnel open", "The tunnel is open. You may connect now. Visit /logout to close it."))
+    secret = load_secret()
+    token = bearer_token(headers)
+    if not secret or token != secret:
+        logging.info(f"rejected [{path}]: invalid bearer token")
+        send_json(conn, "401 Unauthorized", {"error": "invalid token"})
         return
 
-    send_http(conn, "200 OK", login_page(None))
+    if path == "/login":
+        set_armed(True)
+        send_json(conn, "200 OK", {"armed": True})
+        return
+
+    set_armed(False)
+    send_json(conn, "200 OK", {"armed": False})
 
 
 def splice(client, upstream):
@@ -239,8 +196,8 @@ def handle_connection(conn, addr):
             return
 
         initial = conn.recv(SPLICE_BUFFER)
-        method, target, headers, body = recv_http_request(conn, initial)
-        handle_http(conn, method, target, headers, body)
+        method, target, headers, _ = recv_http_request(conn, initial)
+        handle_http(conn, method, target, headers)
     except Exception as e:
         logging.error(f"error handling connection from [{addr}]: [{e}]")
     finally:
