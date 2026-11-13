@@ -1,21 +1,21 @@
 services:
   operator:
     build: .
-    container_name: operator
-    hostname: operator
-    cgroup: host
     cap_add:
       - SYS_ADMIN
+    cgroup: host
+    container_name: operator
+    hostname: operator
+    ports:
+      - "8443:8443"
     security_opt:
       - apparmor=unconfined
     tmpfs:
       - /run
       - /tmp:exec
     volumes:
-      - root:/root
       - /sys/fs/cgroup:/sys/fs/cgroup
       - /var/run/docker.sock:/run/docker.sock
-    ports:
-      - "8443:8443"
+      - root:/root
 volumes:
   root:

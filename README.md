@@ -5,42 +5,23 @@ TLS-masked tunnel (`stunnel` on port `8443`): on the wire the connection looks l
 plain HTTPS to `outsideworx.net`. There is no raw SSH port published — recover via
 `docker exec` from the host if the tunnel is ever unavailable.
 
-The tunnel is also **port-knock gated**: before any SSH connection works you must
-open it with a `Bearer`-token knock. The knock gatekeeper exposes a tiny JSON API
-over the same TLS front — there is **no web UI**:
+The tunnel is also **port-knock gated**: before any SSH connection works the tunnel
+must be armed. Use the **`services` admin portal** (`clients/outsideworx`), which has
+a single **Open tunnel** button — it arms the tunnel for **60 seconds** (shown as a
+live countdown), the window in which to establish the SSH connection. The portal holds
+the knock token in its key-value store (key `operator-knock-token`), so there is
+nothing to copy or paste.
 
-- `POST https://outsideworx.net:8443/login` with header
-  `Authorization: Bearer <secret>` arms the tunnel (responds `{"armed": true}`).
-- `POST https://outsideworx.net:8443/logout` with the same header disarms it
-  (responds `{"armed": false}`).
-
-The `<secret>` is the contents of `/etc/knock/secret` (retrieve it with
-`cat /etc/knock/secret` over `docker exec` or an open session). A wrong or missing
-token gets `401`. The gate is read fresh on every request, so rotating the secret
-takes effect immediately. Arming is **global and in-memory** — once opened the
-tunnel is open for everyone until a `/logout` or a `knock.service` restart.
-
-The `services` admin portal (`clients/outsideworx`) has a dedicated **Open tunnel /
-Close tunnel** button pair that performs these two calls for you; it reads the token
-from its key-value store (key `operator-knock-token`). You can also drive the gate
-from the shell (see below).
+Arming is **global and in-memory** — once opened the tunnel is open for everyone for
+60 seconds, then it re-closes on its own (there is no logout; a `knock.service` restart
+also closes it immediately). Open again to extend the window. Already-established SSH
+sessions survive expiry — the countdown only bounds when a *new* connection can be
+opened.
 
 All three SSH operations below wrap SSH in TLS via `ProxyCommand`. They authenticate
 with an SSH key present in the operator's `authorized_keys`; the `@host` after the
-user is cosmetic because the `ProxyCommand` selects the destination. Open the knock
-gate first (portal buttons, the `curl` calls below, or the self-knocking helper), or
-these will hang/close.
-
-### Open / close the gate (curl)
-
-```sh
-export OPERATOR_KNOCK_SECRET="$(: set to the contents of /etc/knock/secret)"
-
-# open
-curl -sk -X POST -H "Authorization: Bearer $OPERATOR_KNOCK_SECRET" https://outsideworx.net:8443/login
-# close
-curl -sk -X POST -H "Authorization: Bearer $OPERATOR_KNOCK_SECRET" https://outsideworx.net:8443/logout
-```
+user is cosmetic because the `ProxyCommand` selects the destination. Open the tunnel
+from the portal first, or these will hang/close.
 
 ## Useful Host Operations
 
@@ -50,37 +31,6 @@ Add these to your shell profile (e.g. `~/.zshrc` or `~/.bashrc`).
 
 ```sh
 alias ssh-operator="ssh -o ProxyCommand='openssl s_client -quiet -connect outsideworx.net:8443 -servername outsideworx.net' root@outsideworx.net"
-```
-
-### Connect (self-knocking)
-
-Opens the knock gate, connects, and closes the gate again — no portal step
-needed. It `POST`s the `Bearer` token to `/login` to arm the tunnel, opens the SSH
-session, and `POST`s `/logout` afterwards (via a trap, so the gate is also closed if
-the session is interrupted). Because the token travels in the `Authorization`
-header, arbitrary `openssl rand -base64` secrets work without encoding.
-
-Set the secret in your profile (retrieve it in-container with
-`cat /etc/knock/secret`). Remember that arming is **global** — this opens the
-tunnel for everyone until logout, and anyone's `/logout` can close it mid-session.
-
-```sh
-export OPERATOR_KNOCK_SECRET="<the secret from /etc/knock/secret>"
-
-ssh-operator() {
-  local host="outsideworx.net"
-  local port="8443"
-  local secret="${OPERATOR_KNOCK_SECRET:?set OPERATOR_KNOCK_SECRET to the knock secret}"
-
-  _knock() {
-    curl -sk -X POST -H "Authorization: Bearer ${secret}" "https://${host}:${port}/$1" >/dev/null
-  }
-
-  trap '_knock logout' RETURN INT TERM
-  _knock login
-
-  ssh -o ProxyCommand="openssl s_client -quiet -connect ${host}:${port} -servername ${host}" root@"$host"
-}
 ```
 
 ### Seed SSH keys

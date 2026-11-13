@@ -1,5 +1,5 @@
 [Unit]
-Description=knock gatekeeper for the TLS tunnel
+Description=Port-knock gatekeeper in front of sshd
 After=network.target ssh.service
 Wants=ssh.service
 
