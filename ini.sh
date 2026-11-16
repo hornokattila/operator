@@ -132,6 +132,8 @@ install_knock_secret() {
     info "created '$KNOCK_SECRET'"
   fi
 
+  info "knock secret: $(<"$KNOCK_SECRET")"
+
   info "restarting '$KNOCK_SERVICE'"
   systemctl restart "$KNOCK_SERVICE"
 }

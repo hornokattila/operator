@@ -7,7 +7,7 @@ services:
     container_name: operator
     hostname: operator
     ports:
-      - "8443:8443"
+      - "444:444"
     restart: unless-stopped
     security_opt:
       - apparmor=unconfined

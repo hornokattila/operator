@@ -36,6 +36,6 @@ COPY --chmod=755 ini.sh /root/
 COPY --chmod=600 authorized_keys /root/.ssh/
 RUN chmod 700 /root/.ssh
 
-EXPOSE 8443
+EXPOSE 444
 STOPSIGNAL SIGRTMIN+3
 CMD ["/sbin/init"]
