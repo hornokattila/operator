@@ -31,8 +31,6 @@ RUN systemctl mask containerd.service docker.service docker.socket \
     && { systemctl disable stunnel4.service 2>/dev/null || true; } \
     && systemctl enable knock.service ssh.service stunnel.service
 
-# Seeds the root volume on first creation only; later image changes under
-# /root are hidden by the existing volume.
 COPY .bash_aliases knock.py /root/
 COPY --chmod=755 ini.sh /root/
 COPY --chmod=600 authorized_keys /root/.ssh/
