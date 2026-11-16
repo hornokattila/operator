@@ -8,6 +8,7 @@ services:
     hostname: operator
     ports:
       - "8443:8443"
+    restart: unless-stopped
     security_opt:
       - apparmor=unconfined
     tmpfs:
