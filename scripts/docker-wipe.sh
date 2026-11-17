@@ -12,7 +12,3 @@ sleep 30
 docker secret ls -q | xargs -r docker secret rm
 docker rmi -f "$(docker images -qa)"
 docker system prune -af
-
-apt update
-apt upgrade -y
-htop
